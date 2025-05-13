@@ -1,45 +1,48 @@
-import React, {useEffect, useRef, useState} from 'react';
-import {PanResponder, StyleSheet, View} from 'react-native';
+import React, {useRef, useState} from 'react';
+import {View, StyleSheet, PanResponder} from 'react-native';
 import {
-  Skia,
   Canvas,
-  PaintStyle,
   Path,
+  Skia,
   SkPath,
-  PathOp,
+  PaintStyle,
 } from '@shopify/react-native-skia';
 
 const AppSkia = () => {
-  const [path, setPath] = useState<SkPath>(Skia.Path.Make());
-  const paint = useRef(Skia.Paint());
-  const tp = useRef(Skia.Path.Make());
+  const [paths, setPaths] = useState<SkPath[]>([]);
+  const currentPath = useRef<SkPath | null>(null);
+  const [, forceUpdate] = useState(0); // Para forzar render
 
-  useEffect(() => {
-    paint.current.setColor(Skia.Color('white'));
-    paint.current.setStyle(PaintStyle.Stroke);
-    paint.current.setStrokeWidth(3);
-    paint.current.setAntiAlias(true);
-  }, []);
+  const paint = Skia.Paint();
+  paint.setStyle(PaintStyle.Stroke);
+  paint.setStrokeWidth(2);
+  paint.setColor(Skia.Color('white'));
+  paint.setAntiAlias(true);
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
+
       onPanResponderGrant: evt => {
-        tp.current?.moveTo(
-          evt.nativeEvent.locationX,
-          evt.nativeEvent.locationY,
-        );
+        const path = Skia.Path.Make();
+        path.moveTo(evt.nativeEvent.locationX, evt.nativeEvent.locationY);
+        currentPath.current = path;
+        setPaths(prev => [...prev, path]);
       },
+
       onPanResponderMove: evt => {
-        tp.current?.lineTo(
-          evt.nativeEvent.locationX,
-          evt.nativeEvent.locationY,
-        );
-        setPath(
-          Skia.Path.MakeFromOp(tp.current, tp.current, PathOp.Union) ||
-            Skia.Path.Make(),
-        );
+        if (currentPath.current) {
+          currentPath.current.lineTo(
+            evt.nativeEvent.locationX,
+            evt.nativeEvent.locationY,
+          );
+          forceUpdate(prev => prev + 1);
+        }
+      },
+
+      onPanResponderRelease: () => {
+        currentPath.current = null;
       },
     }),
   ).current;
@@ -47,7 +50,9 @@ const AppSkia = () => {
   return (
     <View style={styles.container} {...panResponder.panHandlers}>
       <Canvas style={styles.canvas}>
-        <Path path={path} paint={paint.current} antiAlias />
+        {paths.map((path, index) => (
+          <Path key={index} path={path} paint={paint} />
+        ))}
       </Canvas>
     </View>
   );
