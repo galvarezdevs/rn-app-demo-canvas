@@ -42,10 +42,10 @@ const AppSkia = () => {
   const background = useImage(require('./assets/bg_notebook.jpg'));
 
   const paint = Skia.Paint();
-    paint.setStyle(PaintStyle.Stroke);
-    paint.setStrokeWidth(stroke);
-    paint.setColor(Skia.Color(color));
-    paint.setAntiAlias(true);
+  paint.setStyle(PaintStyle.Stroke);
+  paint.setStrokeWidth(stroke);
+  paint.setColor(Skia.Color(color));
+  paint.setAntiAlias(true);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -162,7 +162,6 @@ const AppSkia = () => {
 
   useEffect(() => {
     // requestStoragePermission();
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -172,7 +171,7 @@ const AppSkia = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: 'white',
   },
   viewShot: {
     flex: 1,
