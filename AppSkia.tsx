@@ -1,5 +1,13 @@
-import React, {useRef, useState} from 'react';
-import {View, StyleSheet, PanResponder, Dimensions} from 'react-native';
+import React, {useEffect, useRef, useState} from 'react';
+import {
+  View,
+  StyleSheet,
+  PanResponder,
+  Dimensions,
+  SafeAreaView,
+  TouchableOpacity,
+  Text,
+} from 'react-native';
 import ViewShot from 'react-native-view-shot';
 import {
   Canvas,
@@ -11,6 +19,13 @@ import {
   useImage,
 } from '@shopify/react-native-skia';
 
+const COLORS = [
+  '#000000', // black
+  '#fc0303', // red
+];
+
+const STROKE_SIZE = [1, 2];
+
 const AppSkia = () => {
   const svgRef = useRef(null);
 
@@ -20,13 +35,17 @@ const AppSkia = () => {
 
   const [, forceUpdate] = useState(0); // Para forzar render
 
+  const [color, setColor] = useState(COLORS[0]);
+
+  const [stroke, setStroke] = useState(STROKE_SIZE[0]);
+
   const background = useImage(require('./assets/bg_notebook.jpg'));
 
   const paint = Skia.Paint();
-  paint.setStyle(PaintStyle.Stroke);
-  paint.setStrokeWidth(1.5);
-  paint.setColor(Skia.Color('black'));
-  paint.setAntiAlias(true);
+    paint.setStyle(PaintStyle.Stroke);
+    paint.setStrokeWidth(stroke);
+    paint.setColor(Skia.Color(color));
+    paint.setAntiAlias(true);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -56,7 +75,58 @@ const AppSkia = () => {
     }),
   ).current;
 
-  return (
+  const handleClearCanvas = () => {
+    setPaths([]);
+  };
+
+  const handleToogleColor = () => {
+    if (color === COLORS[0]) {
+      setColor(COLORS[1]);
+    } else {
+      setColor(COLORS[0]);
+    }
+  };
+
+  const handleToogleStroke = () => {
+    if (stroke === STROKE_SIZE[0]) {
+      setStroke(STROKE_SIZE[1]);
+    } else {
+      setStroke(STROKE_SIZE[0]);
+    }
+  };
+
+  const handleUndoLastPath = () => {
+    setPaths(prevPaths => {
+      if (prevPaths.length > 0) {
+        return prevPaths.slice(0, -1);
+      }
+      return prevPaths;
+    });
+  };
+
+  const renderHeader = () => (
+    <View style={styles.header}>
+      <TouchableOpacity style={styles.itemButton} onPress={handleClearCanvas}>
+        <Text style={styles.textButtonHeader}>LIMPIAR</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.itemButton, {backgroundColor: color}]}
+        onPress={handleToogleColor}>
+        <Text style={styles.textButtonHeader}>COLOR</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.itemButton} onPress={handleToogleStroke}>
+        <Text style={styles.textButtonHeader}>GROSOR={stroke}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.itemButton} onPress={handleUndoLastPath}>
+        <Text style={styles.textButtonHeader}>DESHACER</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.itemButton} onPress={() => null}>
+        <Text style={styles.textButtonHeader}>GUARDAR</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderBody = () => (
     <View style={styles.container} {...panResponder.panHandlers}>
       <ViewShot
         ref={svgRef}
@@ -82,6 +152,21 @@ const AppSkia = () => {
       </ViewShot>
     </View>
   );
+
+  const renderContainer = () => (
+    <SafeAreaView style={styles.container}>
+      {renderHeader()}
+      {renderBody()}
+    </SafeAreaView>
+  );
+
+  useEffect(() => {
+    // requestStoragePermission();
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return renderContainer();
 };
 
 const styles = StyleSheet.create({
@@ -96,6 +181,29 @@ const styles = StyleSheet.create({
   canvas: {
     flex: 1,
     backgroundColor: 'transparent',
+  },
+
+  header: {
+    width: '100%',
+    height: 100,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  itemButton: {
+    backgroundColor: '#3491c7',
+    height: '100%',
+    width: 80,
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 10,
+    borderRadius: 10,
+    elevation: 5,
+  },
+  textButtonHeader: {
+    color: 'white',
+    fontSize: 12,
   },
 });
 
