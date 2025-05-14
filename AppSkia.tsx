@@ -7,8 +7,11 @@ import {
   SafeAreaView,
   TouchableOpacity,
   Text,
+  PermissionsAndroid,
+  Alert,
 } from 'react-native';
-import ViewShot from 'react-native-view-shot';
+import ViewShot, { captureRef } from 'react-native-view-shot';
+import RNFS from 'react-native-fs';
 import {
   Canvas,
   Path,
@@ -25,6 +28,11 @@ const COLORS = [
 ];
 
 const STROKE_SIZE = [1, 2];
+
+const EXTENSIONS = {
+  JPG: '.jpg',
+  PNG: '.png',
+};
 
 const AppSkia = () => {
   const svgRef = useRef(null);
@@ -75,6 +83,49 @@ const AppSkia = () => {
     }),
   ).current;
 
+  const requestStoragePermission = () => {
+    try {
+      const consult1 = async () => {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+          {
+            title: 'Storage Permission',
+            message: 'App needs access to storage to display images.',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
+        );
+        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+          console.log('READ_EXTERNAL_STORAGE permission granted');
+        } else {
+          console.log('READ_EXTERNAL_STORAGE permission denied');
+        }
+      };
+      const consult2 = async () => {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+          {
+            title: 'Storage Permission',
+            message: 'App needs access to storage to display images.',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
+        );
+        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+          console.log('WRITE_EXTERNAL_STORAGE permission granted');
+        } else {
+          console.log('WRITE_EXTERNAL_STORAGE permission denied');
+        }
+      };
+      consult1();
+      consult2();
+    } catch (err) {
+      console.warn(err);
+    }
+  };
+
   const handleClearCanvas = () => {
     setPaths([]);
   };
@@ -104,6 +155,34 @@ const AppSkia = () => {
     });
   };
 
+  const handleSaveImage = async () => {
+    try {
+      if (paths.length<=0) {
+        return;
+      }
+      const uri = await captureRef(svgRef, {
+        format: 'jpg', // Puedes usar 'png' también
+        quality: 0.1, // Opcional: calidad de la imagen (0 a 1)
+      });
+      console.log('Imagen guardada temporalmente en:', uri);
+
+      // Define la ruta donde quieres guardar la imagen permanentemente
+      const filename = 'picture_' + Date.now() + EXTENSIONS.JPG;
+      // rutas que funcionan:
+      // RNFS.ExternalCachesDirectoryPath --> carpeta cache
+      // RNFS.ExternalDirectoryPath --> carpeta files
+      const destPath = `${RNFS.ExternalDirectoryPath}/${filename}`;
+
+      // Mueve el archivo temporal a la ubicación deseada
+      await RNFS.moveFile(uri, destPath);
+
+      Alert.alert('Imagen guardada en:' + destPath);
+    } catch (error) {
+      console.error('Error al guardar la imagen:', error);
+      Alert.alert('Error al guardar la imagen.');
+    }
+  };
+
   const renderHeader = () => (
     <View style={styles.header}>
       <TouchableOpacity style={styles.itemButton} onPress={handleClearCanvas}>
@@ -120,7 +199,7 @@ const AppSkia = () => {
       <TouchableOpacity style={styles.itemButton} onPress={handleUndoLastPath}>
         <Text style={styles.textButtonHeader}>DESHACER</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.itemButton} onPress={() => null}>
+      <TouchableOpacity style={styles.itemButton} onPress={handleSaveImage}>
         <Text style={styles.textButtonHeader}>GUARDAR</Text>
       </TouchableOpacity>
     </View>
@@ -139,7 +218,6 @@ const AppSkia = () => {
               x={0}
               y={0}
               antiAlias
-              opacity={0.3}
               fit={'fill'}
               width={Dimensions.get('screen').width * 1.0}
               height={Dimensions.get('screen').height * 0.95}>
@@ -161,7 +239,7 @@ const AppSkia = () => {
   );
 
   useEffect(() => {
-    // requestStoragePermission();
+    requestStoragePermission();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
