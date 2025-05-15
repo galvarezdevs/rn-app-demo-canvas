@@ -5,7 +5,7 @@ import {
   PanResponder,
   Dimensions,
   SafeAreaView,
-  TouchableOpacity,
+  Pressable as ButtonUI,
   Text,
   PermissionsAndroid,
   Alert,
@@ -53,8 +53,6 @@ const AppSkia = () => {
 
   const currentPath = useRef<SkPath | null>(null);
 
-  const currentPaint = useRef<SkPaint | null>(null);
-
   const [, forceUpdate] = useState(0);
 
   const color = useRef<string>(COLORS[0]);
@@ -79,7 +77,6 @@ const AppSkia = () => {
         newPaint.setStrokeWidth(stroke.current);
         newPaint.setAntiAlias(true);
         currentPath.current = newPath;
-        currentPaint.current = newPaint;
         paths.current = [
           ...paths.current,
           {
@@ -90,23 +87,17 @@ const AppSkia = () => {
       },
 
       onPanResponderMove: evt => {
-        if (currentPath.current && currentPaint.current) {
+        if (currentPath.current) {
           currentPath.current.lineTo(
             evt.nativeEvent.locationX,
             evt.nativeEvent.locationY,
           );
-          currentPaint.current.setColor(Skia.Color(color.current));
-          currentPaint.current.setStyle(PaintStyle.Stroke);
-          currentPaint.current.setStrokeWidth(stroke.current);
-          currentPaint.current.setAntiAlias(true);
-          console.log('*color, stroke', color.current, stroke.current);
           forceRender();
         }
       },
 
       onPanResponderRelease: () => {
         currentPath.current = null;
-        currentPaint.current = null;
       },
     }),
   ).current;
@@ -210,16 +201,16 @@ const AppSkia = () => {
   const renderHeader = () => (
     <View style={styles.header}>
       {/* boton: limpiar */}
-      <TouchableOpacity
+      <ButtonUI
         style={[
           styles.itemButton,
           {borderColor: color.current, borderWidth: stroke.current},
         ]}
         onPress={handleClearCanvas}>
         <Text style={styles.textButtonHeader}>LIMPIAR</Text>
-      </TouchableOpacity>
+      </ButtonUI>
       {/* boton: color */}
-      <TouchableOpacity
+      <ButtonUI
         style={[
           styles.itemButton,
           {
@@ -230,34 +221,34 @@ const AppSkia = () => {
         ]}
         onPress={handleToggleColor}>
         <Text style={styles.textButtonHeader}>COLOR</Text>
-      </TouchableOpacity>
+      </ButtonUI>
       {/* boton: grosor */}
-      <TouchableOpacity
+      <ButtonUI
         style={[
           styles.itemButton,
           {borderColor: color.current, borderWidth: stroke.current},
         ]}
         onPress={handleToggleStroke}>
         <Text style={styles.textButtonHeader}>GROSOR={stroke.current}</Text>
-      </TouchableOpacity>
+      </ButtonUI>
       {/* boton; deshacer */}
-      <TouchableOpacity
+      <ButtonUI
         style={[
           styles.itemButton,
           {borderColor: color.current, borderWidth: stroke.current},
         ]}
         onPress={handleUndoLastPath}>
         <Text style={styles.textButtonHeader}>DESHACER</Text>
-      </TouchableOpacity>
+      </ButtonUI>
       {/* boton: guardar */}
-      <TouchableOpacity
+      <ButtonUI
         style={[
           styles.itemButton,
           {borderColor: color.current, borderWidth: stroke.current},
         ]}
         onPress={handleSaveImage}>
         <Text style={styles.textButtonHeader}>GUARDAR</Text>
-      </TouchableOpacity>
+      </ButtonUI>
     </View>
   );
 
@@ -273,8 +264,7 @@ const AppSkia = () => {
               image={background}
               x={0}
               y={0}
-              antiAlias
-              fit={'cover'}
+              fit={'fill'}
               width={Dimensions.get('screen').width}
               height={Dimensions.get('screen').height}>
               {paths.current.map((p, i) => (
@@ -315,13 +305,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent',
   },
-
   header: {
     width: '100%',
+    // position: 'absolute',
+    // top: 0,
+    // left: 0,
+    // right: 0,
     height: 100,
-    paddingVertical: 10,
+    // zIndex: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    // padding: 10,
   },
   itemButton: {
     backgroundColor: '#3491c7',
@@ -332,7 +326,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 10,
     borderRadius: 10,
-    elevation: 5,
   },
   textButtonHeader: {
     color: 'white',
