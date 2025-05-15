@@ -3,7 +3,6 @@ import {
   View,
   StyleSheet,
   PanResponder,
-  Dimensions,
   SafeAreaView,
   Pressable as ButtonUI,
   Text,
@@ -254,26 +253,26 @@ const AppSkia = () => {
 
   const renderBody = () => (
     <View style={styles.container} {...panResponder.panHandlers}>
-      <ViewShot
-        ref={svgRef}
-        style={styles.viewShot}
-        options={{format: 'jpg', quality: 0.9}}>
-        <Canvas style={styles.canvas}>
-          {background && (
+      {background && (
+        <ViewShot
+          ref={svgRef}
+          style={styles.viewShot}
+          options={{format: 'jpg', quality: 0.9}}>
+          <Canvas style={styles.canvas}>
             <Image
               image={background}
               x={0}
               y={0}
               fit={'fill'}
-              width={Dimensions.get('screen').width}
-              height={Dimensions.get('screen').height}>
+              width={background.width()}
+              height={background.height()}>
               {paths.current.map((p, i) => (
                 <Path key={i} path={p.path} paint={p.paint} />
               ))}
             </Image>
-          )}
-        </Canvas>
-      </ViewShot>
+          </Canvas>
+        </ViewShot>
+      )}
     </View>
   );
 
