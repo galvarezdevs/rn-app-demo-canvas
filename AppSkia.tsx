@@ -209,14 +209,29 @@ const AppSkia = () => {
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <TouchableOpacity style={styles.itemButton} onPress={handleClearCanvas}>
+      {/* boton: limpiar */}
+      <TouchableOpacity
+        style={[
+          styles.itemButton,
+          {borderColor: color.current, borderWidth: stroke.current},
+        ]}
+        onPress={handleClearCanvas}>
         <Text style={styles.textButtonHeader}>LIMPIAR</Text>
       </TouchableOpacity>
+      {/* boton: color */}
       <TouchableOpacity
-        style={[styles.itemButton, {backgroundColor: color.current}]}
+        style={[
+          styles.itemButton,
+          {
+            borderColor: color.current,
+            borderWidth: stroke.current,
+            backgroundColor: color.current,
+          },
+        ]}
         onPress={handleToggleColor}>
         <Text style={styles.textButtonHeader}>COLOR</Text>
       </TouchableOpacity>
+      {/* boton: grosor */}
       <TouchableOpacity
         style={[
           styles.itemButton,
@@ -225,10 +240,22 @@ const AppSkia = () => {
         onPress={handleToggleStroke}>
         <Text style={styles.textButtonHeader}>GROSOR={stroke.current}</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.itemButton} onPress={handleUndoLastPath}>
+      {/* boton; deshacer */}
+      <TouchableOpacity
+        style={[
+          styles.itemButton,
+          {borderColor: color.current, borderWidth: stroke.current},
+        ]}
+        onPress={handleUndoLastPath}>
         <Text style={styles.textButtonHeader}>DESHACER</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.itemButton} onPress={handleSaveImage}>
+      {/* boton: guardar */}
+      <TouchableOpacity
+        style={[
+          styles.itemButton,
+          {borderColor: color.current, borderWidth: stroke.current},
+        ]}
+        onPress={handleSaveImage}>
         <Text style={styles.textButtonHeader}>GUARDAR</Text>
       </TouchableOpacity>
     </View>
@@ -247,7 +274,7 @@ const AppSkia = () => {
               x={0}
               y={0}
               antiAlias
-              fit={'none'}
+              fit={'cover'}
               width={Dimensions.get('screen').width}
               height={Dimensions.get('screen').height}>
               {paths.current.map((p, i) => (
