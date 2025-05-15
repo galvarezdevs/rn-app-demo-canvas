@@ -10,7 +10,7 @@ import {
   PermissionsAndroid,
   Alert,
 } from 'react-native';
-import ViewShot, { captureRef } from 'react-native-view-shot';
+import ViewShot, {captureRef} from 'react-native-view-shot';
 import RNFS from 'react-native-fs';
 import {
   Canvas,
@@ -20,14 +20,26 @@ import {
   PaintStyle,
   Image,
   useImage,
+  SkPaint,
 } from '@shopify/react-native-skia';
 
+type DrawablePath = {
+  path: SkPath;
+  paint: SkPaint;
+};
+
 const COLORS = [
-  '#000000', // black
-  '#fc0303', // red
+  'black',
+  'red',
+  'blue',
+  'green',
+  'pink',
+  'yellow',
+  'brown',
+  'purple',
 ];
 
-const STROKE_SIZE = [1, 2];
+const STROKE_SIZE = [1, 2, 3, 4, 5, 6];
 
 const EXTENSIONS = {
   JPG: '.jpg',
@@ -37,23 +49,21 @@ const EXTENSIONS = {
 const AppSkia = () => {
   const svgRef = useRef(null);
 
-  const [paths, setPaths] = useState<SkPath[]>([]);
+  const paths = useRef<DrawablePath[]>([]);
 
   const currentPath = useRef<SkPath | null>(null);
 
-  const [, forceUpdate] = useState(0); // Para forzar render
+  const currentPaint = useRef<SkPaint | null>(null);
 
-  const [color, setColor] = useState(COLORS[0]);
+  const [, forceUpdate] = useState(0);
 
-  const [stroke, setStroke] = useState(STROKE_SIZE[0]);
+  const color = useRef<string>(COLORS[0]);
+
+  const stroke = useRef<number>(STROKE_SIZE[0]);
 
   const background = useImage(require('./assets/bg_notebook.jpg'));
 
-  const paint = Skia.Paint();
-  paint.setStyle(PaintStyle.Stroke);
-  paint.setStrokeWidth(stroke);
-  paint.setColor(Skia.Color(color));
-  paint.setAntiAlias(true);
+  const forceRender = () => forceUpdate(prev => prev + 1);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -61,24 +71,42 @@ const AppSkia = () => {
       onMoveShouldSetPanResponder: () => true,
 
       onPanResponderGrant: evt => {
-        const path = Skia.Path.Make();
-        path.moveTo(evt.nativeEvent.locationX, evt.nativeEvent.locationY);
-        currentPath.current = path;
-        setPaths(prev => [...prev, path]);
+        const newPath = Skia.Path.Make();
+        newPath.moveTo(evt.nativeEvent.locationX, evt.nativeEvent.locationY);
+        const newPaint = Skia.Paint();
+        newPaint.setColor(Skia.Color(color.current));
+        newPaint.setStyle(PaintStyle.Stroke);
+        newPaint.setStrokeWidth(stroke.current);
+        newPaint.setAntiAlias(true);
+        currentPath.current = newPath;
+        currentPaint.current = newPaint;
+        paths.current = [
+          ...paths.current,
+          {
+            path: newPath,
+            paint: newPaint,
+          },
+        ];
       },
 
       onPanResponderMove: evt => {
-        if (currentPath.current) {
+        if (currentPath.current && currentPaint.current) {
           currentPath.current.lineTo(
             evt.nativeEvent.locationX,
             evt.nativeEvent.locationY,
           );
-          forceUpdate(prev => prev + 1);
+          currentPaint.current.setColor(Skia.Color(color.current));
+          currentPaint.current.setStyle(PaintStyle.Stroke);
+          currentPaint.current.setStrokeWidth(stroke.current);
+          currentPaint.current.setAntiAlias(true);
+          console.log('*color, stroke', color.current, stroke.current);
+          forceRender();
         }
       },
 
       onPanResponderRelease: () => {
         currentPath.current = null;
+        currentPaint.current = null;
       },
     }),
   ).current;
@@ -127,48 +155,42 @@ const AppSkia = () => {
   };
 
   const handleClearCanvas = () => {
-    setPaths([]);
+    paths.current = [];
+    forceRender();
   };
 
-  const handleToogleColor = () => {
-    if (color === COLORS[0]) {
-      setColor(COLORS[1]);
-    } else {
-      setColor(COLORS[0]);
+  const handleToggleColor = () => {
+    const currentIndex = COLORS.indexOf(color.current);
+    const nextIndex = (currentIndex + 1) % COLORS.length;
+    color.current = COLORS[nextIndex];
+    forceRender();
+  };
+
+  const handleToggleStroke = () => {
+    const currentIndex = STROKE_SIZE.indexOf(stroke.current);
+    const nextIndex = (currentIndex + 1) % STROKE_SIZE.length;
+    stroke.current = STROKE_SIZE[nextIndex];
+    forceRender();
+  };
+
+  const handleUndoLastPath = (): void => {
+    if (paths.current.length > 0) {
+      paths.current = paths.current.slice(0, -1);
+      forceRender();
     }
-  };
-
-  const handleToogleStroke = () => {
-    if (stroke === STROKE_SIZE[0]) {
-      setStroke(STROKE_SIZE[1]);
-    } else {
-      setStroke(STROKE_SIZE[0]);
-    }
-  };
-
-  const handleUndoLastPath = () => {
-    setPaths(prevPaths => {
-      if (prevPaths.length > 0) {
-        return prevPaths.slice(0, -1);
-      }
-      return prevPaths;
-    });
   };
 
   const handleSaveImage = async () => {
     try {
-      if (paths.length<=0) {
+      if (paths.current.length <= 0) {
         return;
       }
       const uri = await captureRef(svgRef, {
         format: 'jpg', // Puedes usar 'png' también
         quality: 0.1, // Opcional: calidad de la imagen (0 a 1)
       });
-      console.log('Imagen guardada temporalmente en:', uri);
 
-      // Define la ruta donde quieres guardar la imagen permanentemente
       const filename = 'picture_' + Date.now() + EXTENSIONS.JPG;
-      // rutas que funcionan:
       // RNFS.ExternalCachesDirectoryPath --> carpeta cache
       // RNFS.ExternalDirectoryPath --> carpeta files
       const destPath = `${RNFS.ExternalDirectoryPath}/${filename}`;
@@ -177,6 +199,8 @@ const AppSkia = () => {
       await RNFS.moveFile(uri, destPath);
 
       Alert.alert('Imagen guardada en:' + destPath);
+
+      handleClearCanvas();
     } catch (error) {
       console.error('Error al guardar la imagen:', error);
       Alert.alert('Error al guardar la imagen.');
@@ -189,12 +213,17 @@ const AppSkia = () => {
         <Text style={styles.textButtonHeader}>LIMPIAR</Text>
       </TouchableOpacity>
       <TouchableOpacity
-        style={[styles.itemButton, {backgroundColor: color}]}
-        onPress={handleToogleColor}>
+        style={[styles.itemButton, {backgroundColor: color.current}]}
+        onPress={handleToggleColor}>
         <Text style={styles.textButtonHeader}>COLOR</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.itemButton} onPress={handleToogleStroke}>
-        <Text style={styles.textButtonHeader}>GROSOR={stroke}</Text>
+      <TouchableOpacity
+        style={[
+          styles.itemButton,
+          {borderColor: color.current, borderWidth: stroke.current},
+        ]}
+        onPress={handleToggleStroke}>
+        <Text style={styles.textButtonHeader}>GROSOR={stroke.current}</Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.itemButton} onPress={handleUndoLastPath}>
         <Text style={styles.textButtonHeader}>DESHACER</Text>
@@ -218,11 +247,11 @@ const AppSkia = () => {
               x={0}
               y={0}
               antiAlias
-              fit={'fill'}
-              width={Dimensions.get('screen').width * 1.0}
-              height={Dimensions.get('screen').height * 0.95}>
-              {paths.map((path, index) => (
-                <Path key={index} path={path} paint={paint} />
+              fit={'none'}
+              width={Dimensions.get('screen').width}
+              height={Dimensions.get('screen').height}>
+              {paths.current.map((p, i) => (
+                <Path key={i} path={p.path} paint={p.paint} />
               ))}
             </Image>
           )}
