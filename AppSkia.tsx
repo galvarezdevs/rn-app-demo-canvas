@@ -42,25 +42,20 @@ const STROKE_SIZE = [1, 2, 3, 4, 5, 6];
 
 const EXTENSIONS = {
   JPG: '.jpg',
-  PNG: '.png',
 };
 
 const AppSkia = () => {
   const svgRef = useRef(null);
-
   const paths = useRef<DrawablePath[]>([]);
-
   const currentPath = useRef<SkPath | null>(null);
-
   const [, forceUpdate] = useState(0);
 
   const color = useRef<string>(COLORS[0]);
-
   const stroke = useRef<number>(STROKE_SIZE[0]);
-
   const background = useImage(require('./assets/bg_notebook.jpg'));
 
-  const forceRender = () => forceUpdate(prev => prev + 1);
+  const forceRender = () =>
+    requestAnimationFrame(() => forceUpdate(prev => prev + 1));
 
   const panResponder = useRef(
     PanResponder.create({
@@ -76,13 +71,7 @@ const AppSkia = () => {
         newPaint.setStrokeWidth(stroke.current);
         newPaint.setAntiAlias(true);
         currentPath.current = newPath;
-        paths.current = [
-          ...paths.current,
-          {
-            path: newPath,
-            paint: newPaint,
-          },
-        ];
+        paths.current.push({path: newPath, paint: newPaint});
       },
 
       onPanResponderMove: evt => {
@@ -101,44 +90,18 @@ const AppSkia = () => {
     }),
   ).current;
 
-  const requestStoragePermission = () => {
+  const requestStoragePermission = async () => {
     try {
-      const consult1 = async () => {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
-          {
-            title: 'Storage Permission',
-            message: 'App needs access to storage to display images.',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          },
-        );
-        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-          console.log('READ_EXTERNAL_STORAGE permission granted');
-        } else {
-          console.log('READ_EXTERNAL_STORAGE permission denied');
+      const perms = [
+        PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+        PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+      ];
+      for (const perm of perms) {
+        const granted = await PermissionsAndroid.request(perm);
+        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+          console.warn(`${perm} permission denied`);
         }
-      };
-      const consult2 = async () => {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-          {
-            title: 'Storage Permission',
-            message: 'App needs access to storage to display images.',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          },
-        );
-        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-          console.log('WRITE_EXTERNAL_STORAGE permission granted');
-        } else {
-          console.log('WRITE_EXTERNAL_STORAGE permission denied');
-        }
-      };
-      consult1();
-      consult2();
+      }
     } catch (err) {
       console.warn(err);
     }
@@ -151,45 +114,38 @@ const AppSkia = () => {
 
   const handleToggleColor = () => {
     const currentIndex = COLORS.indexOf(color.current);
-    const nextIndex = (currentIndex + 1) % COLORS.length;
-    color.current = COLORS[nextIndex];
+    color.current = COLORS[(currentIndex + 1) % COLORS.length];
     forceRender();
   };
 
   const handleToggleStroke = () => {
     const currentIndex = STROKE_SIZE.indexOf(stroke.current);
-    const nextIndex = (currentIndex + 1) % STROKE_SIZE.length;
-    stroke.current = STROKE_SIZE[nextIndex];
+    stroke.current = STROKE_SIZE[(currentIndex + 1) % STROKE_SIZE.length];
     forceRender();
   };
 
-  const handleUndoLastPath = (): void => {
+  const handleUndoLastPath = () => {
     if (paths.current.length > 0) {
-      paths.current = paths.current.slice(0, -1);
+      paths.current.pop();
       forceRender();
     }
   };
 
   const handleSaveImage = async () => {
     try {
-      if (paths.current.length <= 0) {
+      if (paths.current.length === 0) {
         return;
       }
       const uri = await captureRef(svgRef, {
-        format: 'jpg', // Puedes usar 'png' también
-        quality: 0.1, // Opcional: calidad de la imagen (0 a 1)
+        format: 'jpg',
+        quality: 0.9,
       });
 
-      const filename = 'picture_' + Date.now() + EXTENSIONS.JPG;
-      // RNFS.ExternalCachesDirectoryPath --> carpeta cache
-      // RNFS.ExternalDirectoryPath --> carpeta files
+      const filename = `picture_${Date.now()}${EXTENSIONS.JPG}`;
       const destPath = `${RNFS.ExternalDirectoryPath}/${filename}`;
-
-      // Mueve el archivo temporal a la ubicación deseada
       await RNFS.moveFile(uri, destPath);
 
-      Alert.alert('Imagen guardada en:' + destPath);
-
+      Alert.alert('Imagen guardada en:', destPath);
       handleClearCanvas();
     } catch (error) {
       console.error('Error al guardar la imagen:', error);
@@ -199,96 +155,64 @@ const AppSkia = () => {
 
   const renderHeader = () => (
     <View style={styles.header}>
-      {/* boton: limpiar */}
-      <ButtonUI
-        style={[
-          styles.itemButton,
-          {borderColor: color.current, borderWidth: stroke.current},
-        ]}
-        onPress={handleClearCanvas}>
-        <Text style={styles.textButtonHeader}>LIMPIAR</Text>
-      </ButtonUI>
-      {/* boton: color */}
-      <ButtonUI
-        style={[
-          styles.itemButton,
-          {
-            borderColor: color.current,
-            borderWidth: stroke.current,
-            backgroundColor: color.current,
-          },
-        ]}
-        onPress={handleToggleColor}>
-        <Text style={styles.textButtonHeader}>COLOR</Text>
-      </ButtonUI>
-      {/* boton: grosor */}
-      <ButtonUI
-        style={[
-          styles.itemButton,
-          {borderColor: color.current, borderWidth: stroke.current},
-        ]}
-        onPress={handleToggleStroke}>
-        <Text style={styles.textButtonHeader}>GROSOR={stroke.current}</Text>
-      </ButtonUI>
-      {/* boton; deshacer */}
-      <ButtonUI
-        style={[
-          styles.itemButton,
-          {borderColor: color.current, borderWidth: stroke.current},
-        ]}
-        onPress={handleUndoLastPath}>
-        <Text style={styles.textButtonHeader}>DESHACER</Text>
-      </ButtonUI>
-      {/* boton: guardar */}
-      <ButtonUI
-        style={[
-          styles.itemButton,
-          {borderColor: color.current, borderWidth: stroke.current},
-        ]}
-        onPress={handleSaveImage}>
-        <Text style={styles.textButtonHeader}>GUARDAR</Text>
-      </ButtonUI>
+      {[
+        {label: 'LIMPIAR', onPress: handleClearCanvas},
+        {label: 'COLOR', onPress: handleToggleColor},
+        {
+          label: `GROSOR=${stroke.current}`,
+          onPress: handleToggleStroke,
+        },
+        {label: 'DESHACER', onPress: handleUndoLastPath},
+        {label: 'GUARDAR', onPress: handleSaveImage},
+      ].map(({label, onPress}, idx) => (
+        <ButtonUI
+          key={idx}
+          style={[
+            styles.itemButton,
+            {borderColor: color.current, borderWidth: stroke.current},
+          ]}
+          onPress={onPress}>
+          <Text style={styles.textButtonHeader}>{label}</Text>
+        </ButtonUI>
+      ))}
     </View>
   );
 
-  const renderBody = () => (
-    <View style={styles.container} {...panResponder.panHandlers}>
+  const renderCanvas = () => (
+    <Canvas style={styles.canvas}>
       {background && (
-        <ViewShot
-          ref={svgRef}
-          style={styles.viewShot}
-          options={{format: 'jpg', quality: 0.9}}>
-          <Canvas style={styles.canvas}>
-            <Image
-              image={background}
-              x={0}
-              y={0}
-              fit={'fill'}
-              width={background.width()}
-              height={background.height()}>
-              {paths.current.map((p, i) => (
-                <Path key={i} path={p.path} paint={p.paint} />
-              ))}
-            </Image>
-          </Canvas>
-        </ViewShot>
+        <Image
+          image={background}
+          x={0}
+          y={0}
+          fit="fill"
+          width={background.width()}
+          height={background.height()}
+        />
       )}
-    </View>
-  );
-
-  const renderContainer = () => (
-    <SafeAreaView style={styles.container}>
-      {renderHeader()}
-      {renderBody()}
-    </SafeAreaView>
+      {paths.current.map((p, i) => (
+        <Path key={i} path={p.path} paint={p.paint} />
+      ))}
+    </Canvas>
   );
 
   useEffect(() => {
     requestStoragePermission();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return renderContainer();
+  return (
+    <SafeAreaView style={styles.container}>
+      {renderHeader()}
+      <View style={styles.container} {...panResponder.panHandlers}>
+        <ViewShot
+          ref={svgRef}
+          style={styles.viewShot}
+          options={{format: 'jpg', quality: 0.9}}>
+          {renderCanvas()}
+        </ViewShot>
+      </View>
+    </SafeAreaView>
+  );
 };
 
 const styles = StyleSheet.create({
@@ -315,10 +239,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#3491c7',
     height: '100%',
     width: 80,
-    flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: 10,
+    marginHorizontal: 4,
     borderRadius: 10,
   },
   textButtonHeader: {
